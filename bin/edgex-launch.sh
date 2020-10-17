@@ -77,6 +77,11 @@ cd $CMD/support-scheduler
 exec -a edgex-support-scheduler ./support-scheduler &
 cd $DIR
 
+# Edgex exporter
+cd $CMD/edgex_exporter
+exec -a edgex_exporter ./edgex_exporter &
+cd $DIR 
+
 trap cleanup EXIT
 
 while : ; do sleep 1 ; done

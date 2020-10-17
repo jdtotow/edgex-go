@@ -1,0 +1,26 @@
+version: '3.1'
+services:
+  mongodb:
+    image: mongo
+    restart: always
+    environment:
+      - MONGO_INITDB_DATABASE=edge
+    ports: 
+      - 27017:27017
+  redis:
+    image: bitnami/redis
+    restart: always
+    environment: 
+      - ALLOW_EMPTY_PASSWORD=yes
+    #volumes: 
+    #  - ./redis/data:/bitnami/redis/data 
+    ports:
+      - 6379:6379
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./monitoring/prometheus/conf/prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"

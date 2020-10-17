@@ -1,0 +1,20 @@
+version: '3'
+services:
+  prometheus:
+    image: prom/prometheus
+    container_name: prometheus
+    restart: always
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    ports:
+      - "9090:9090"
+  edgex-exporter:
+    image: edgex-exporter:master
+    container_name: edgex-exporter
+    restart: always
+    ports:
+      - "9410:9410"
+    command: >
+      --coredata.server=http://172.17.0.1:48080/api/v1
+      --metadata.server=http://172.17.0.1:48081/api/v1
+      --consul.server=http://172.17.0.1:8500

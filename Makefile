@@ -10,7 +10,7 @@
 GO=CGO_ENABLED=0 GO111MODULE=on go
 GOCGO=CGO_ENABLED=1 GO111MODULE=on go
 
-DOCKERS=docker_core_data docker_core_metadata docker_core_command docker_support_logging docker_support_notifications docker_sys_mgmt_agent docker_support_scheduler docker_security_secrets_setup docker_security_proxy_setup docker_security_secretstore_setup
+DOCKERS=docker_core_data docker_core_metadata docker_core_command docker_support_logging docker_support_notifications docker_sys_mgmt_agent docker_support_scheduler docker_security_secrets_setup docker_security_proxy_setup docker_security_secretstore_setup docker_edgex_exporter
 .PHONY: $(DOCKERS)
 
 MICROSERVICES=cmd/core-metadata/core-metadata cmd/core-data/core-data \
@@ -19,14 +19,15 @@ MICROSERVICES=cmd/core-metadata/core-metadata cmd/core-data/core-data \
 	cmd/sys-mgmt-agent/sys-mgmt-agent cmd/support-scheduler/support-scheduler \
 	cmd/security-secrets-setup/security-secrets-setup cmd/security-proxy-setup/security-proxy-setup \
 	cmd/security-secretstore-setup/security-secretstore-setup \
-	cmd/security-file-token-provider/security-file-token-provider cmd/security-secretstore-read/security-secretstore-read
+	cmd/security-file-token-provider/security-file-token-provider cmd/security-secretstore-read/security-secretstore-read \
+	cmd/edgex_exporter/edgex_exporter 
 
 .PHONY: $(MICROSERVICES)
 
 VERSION=$(shell cat ./VERSION 2>/dev/null || echo 0.0.0)
 DOCKER_TAG=$(VERSION)-dev
 
-GOFLAGS=-ldflags "-X github.com/edgexfoundry/edgex-go.Version=$(VERSION)"
+GOFLAGS=-ldflags "-X github.com/jdtotow/edgex-go.Version=$(VERSION)"
 GOTESTFLAGS?=-race
 
 GIT_SHA=$(shell git rev-parse HEAD)
@@ -43,6 +44,9 @@ cmd/core-data/core-data:
 
 cmd/core-command/core-command:
 	$(GO) build $(GOFLAGS) -o $@ ./cmd/core-command
+
+cmd/edgex_exporter/edgex_exporter:
+	$(GO) build $(GOFLAGS) -o $@ ./cmd/edgex_exporter
 
 cmd/support-logging/support-logging:
 	$(GO) build $(GOFLAGS) -o $@ ./cmd/support-logging
@@ -99,8 +103,8 @@ docker_core_metadata:
 	    --build-arg https_proxy \
 		-f cmd/core-metadata/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-core-metadata-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-core-metadata-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-core-metadata-go:$(GIT_SHA) \
+		-t jdtotow/docker-core-metadata-go:$(DOCKER_TAG) \
 		.
 
 docker_core_data:
@@ -109,8 +113,8 @@ docker_core_data:
 	    --build-arg https_proxy \
 		-f cmd/core-data/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-core-data-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-core-data-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-core-data-go:$(GIT_SHA) \
+		-t jdtotow/docker-core-data-go:$(DOCKER_TAG) \
 		.
 
 docker_core_command:
@@ -119,8 +123,8 @@ docker_core_command:
 	    --build-arg https_proxy \
 		-f cmd/core-command/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-core-command-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-core-command-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-core-command-go:$(GIT_SHA) \
+		-t jdtotow/docker-core-command-go:$(DOCKER_TAG) \
 		.
 
 docker_support_logging:
@@ -129,8 +133,8 @@ docker_support_logging:
 	    --build-arg https_proxy \
 		-f cmd/support-logging/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-support-logging-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-support-logging-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-support-logging-go:$(GIT_SHA) \
+		-t jdtotow/docker-support-logging-go:$(DOCKER_TAG) \
 		.
 
 docker_support_notifications:
@@ -139,8 +143,8 @@ docker_support_notifications:
 	    --build-arg https_proxy \
 		-f cmd/support-notifications/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-support-notifications-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-support-notifications-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-support-notifications-go:$(GIT_SHA) \
+		-t jdtotow/docker-support-notifications-go:$(DOCKER_TAG) \
 		.
 
 docker_support_scheduler:
@@ -149,8 +153,8 @@ docker_support_scheduler:
 	    --build-arg https_proxy \
 		-f cmd/support-scheduler/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-support-scheduler-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-support-scheduler-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-support-scheduler-go:$(GIT_SHA) \
+		-t jdtotow/docker-support-scheduler-go:$(DOCKER_TAG) \
 		.
 
 docker_sys_mgmt_agent:
@@ -159,8 +163,8 @@ docker_sys_mgmt_agent:
 	    --build-arg https_proxy \
 		-f cmd/sys-mgmt-agent/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-sys-mgmt-agent-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-sys-mgmt-agent-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-sys-mgmt-agent-go:$(GIT_SHA) \
+		-t jdtotow/docker-sys-mgmt-agent-go:$(DOCKER_TAG) \
 		.
 
 docker_security_secrets_setup:
@@ -169,8 +173,8 @@ docker_security_secrets_setup:
 	    --build-arg https_proxy \
 		-f cmd/security-secrets-setup/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-edgex-secrets-setup-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-edgex-secrets-setup-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-edgex-secrets-setup-go:$(GIT_SHA) \
+		-t jdtotow/docker-edgex-secrets-setup-go:$(DOCKER_TAG) \
 		.
 
 docker_security_proxy_setup:
@@ -179,8 +183,8 @@ docker_security_proxy_setup:
 	    --build-arg https_proxy \
 		-f cmd/security-proxy-setup/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-edgex-security-proxy-setup-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-edgex-security-proxy-setup-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-edgex-security-proxy-setup-go:$(GIT_SHA) \
+		-t jdtotow/docker-edgex-security-proxy-setup-go:$(DOCKER_TAG) \
 		.
 
 docker_security_secretstore_setup:
@@ -189,7 +193,15 @@ docker_security_secretstore_setup:
 	    --build-arg https_proxy \
 		-f cmd/security-secretstore-setup/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
-		-t edgexfoundry/docker-edgex-security-secretstore-setup-go:$(GIT_SHA) \
-		-t edgexfoundry/docker-edgex-security-secretstore-setup-go:$(DOCKER_TAG) \
+		-t jdtotow/docker-edgex-security-secretstore-setup-go:$(GIT_SHA) \
+		-t jdtotow/docker-edgex-security-secretstore-setup-go:$(DOCKER_TAG) \
 		.
 
+docker_edgex_exporter:
+		docker build \
+	    --build-arg http_proxy \
+	    --build-arg https_proxy \
+		-f cmd/edgex_exporter/Dockerfile \
+		--label "git_sha=$(GIT_SHA)" \
+		-t jdtotow/docker-edgex-exporter:$(GIT_SHA) \
+		-t jdtotow/docker-edgex-exporter:$(DOCKER_TAG) \
