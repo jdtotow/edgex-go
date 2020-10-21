@@ -1,0 +1,28 @@
+{
+    "name": "flask",
+    "components":[
+        {
+            "name": "webservice",
+            "image": "jdtotow/flask2",
+            "env": ["MONGO_HOSTNAME=mongodb"],
+            "ports": [5000],
+            "volumes": [],
+            "command":"",
+            "labels": {"component": "ws"},
+            "restart": {"name": "on-failure", "MaximumRetryCount": 20},
+            "resource": {"cpu_limit": 200000000,"cpu_reservation": 200000000, "mem_limit": 48000000,"mem_reservation": 48000000}
+        },
+        {
+            "name": "mongodb",
+            "image": "mongo",
+            "ports": [27017],
+            "env": [],
+            "command":"",
+            "volumes":[],
+            "labels": {"component":"db"},
+            "restart": {"name": "on-failure", "MaximumRetryCount": 20},
+            "resource": {"cpu_limit": 200000000,"cpu_reservation": 200000000, "mem_limit": 128000000,"mem_reservation": 128000000}
+        }
+
+    ]
+}
