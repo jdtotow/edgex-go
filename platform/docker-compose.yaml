@@ -4,7 +4,7 @@ services:
     image: mongo
     restart: always
     environment:
-      - MONGO_INITDB_DATABASE=edge
+      - MONGO_INITDB_DATABASE=edgex
     ports: 
       - 27017:27017
   redis:
@@ -17,10 +17,53 @@ services:
     ports:
       - 6379:6379
   prometheus:
-    image: prom/prometheus
+    image: prom/prometheus:v2.22.0
+    user: root 
     container_name: prometheus
     restart: always
     volumes:
       - ./monitoring/prometheus/conf/prometheus.yml:/etc/prometheus/prometheus.yml
+      - /var/run/docker.sock:/var/run/docker.sock:ro 
     ports:
       - "9090:9090"
+
+  cadvisor:
+    image: 'google/cadvisor:latest'
+    container_name: cadvisor
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker/:/var/lib/docker:ro
+      - /dev/disk:/dev/disk/:ro
+    ports:
+    - '8080:8080'
+  node_exporter:
+    image: prom/node-exporter
+    container_name: node_exporter
+    volumes:
+     - '/proc:/host/proc:ro'
+     - '/sys:/host/sys:ro'
+     - '/:/rootfs:ro'
+    command:
+     - '--path.procfs=/host/proc'
+     - '--path.sysfs=/host/sys'
+     - '--collector.filesystem.ignored-mount-points'
+     - ^/(sys|proc|dev|host|etc|rootfs/var/lib/docker/containers|rootfs/var/lib/docker/overlay2|rootfs/run/docker/netns|rootfs/var/lib/docker/aufs)($$|/)
+    restart: always
+  consul:
+    image: bitnami/consul:latest
+    ports:
+      - '8300:8300'
+      - '8301:8301'
+      - '8301:8301/udp'
+      - '8500:8500'
+      - '8600:8600'
+      - '8600:8600/udp'
+  grafana:
+    image: grafana/grafana 
+    container_name: grafana 
+    ports:
+      - 3000:3000 
+    restart: always
+    

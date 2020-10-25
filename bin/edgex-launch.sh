@@ -29,7 +29,7 @@ export EDGEX_SECURITY_SECRET_STORE=false
 ###
 cd $CMD/support-logging
 # Add `edgex-` prefix on start, so we can find the process family
-exec -a edgex-support-logging ./support-logging &
+exec -a edgex-support-logging ./support-logging  &
 cd $DIR
 
 ###
@@ -37,21 +37,21 @@ cd $DIR
 ###
 cd $CMD/core-command
 # Add `edgex-` prefix on start, so we can find the process family
-exec -a edgex-core-command ./core-command &
+exec -a edgex-core-command ./core-command  &
 cd $DIR
 
 ###
 # Core Data
 ###
 cd $CMD/core-data
-exec -a edgex-core-data ./core-data &
+exec -a edgex-core-data ./core-data  &
 cd $DIR
 
 ###
 # Core Metadata
 ###
 cd $CMD/core-metadata
-exec -a edgex-core-metadata ./core-metadata &
+exec -a edgex-core-metadata ./core-metadata  &
 cd $DIR
 
 ###

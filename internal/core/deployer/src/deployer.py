@@ -1,4 +1,4 @@
-import json, time, docker, os, pickle
+import json, time, docker, os, pickle, requests, logging 
 from os import path 
 from docker.types import Resources as DockerResources, RestartPolicy, EndpointSpec
 from prometheus_client import CollectorRegistry, Gauge
@@ -6,7 +6,13 @@ from prometheus_client import CollectorRegistry, Gauge
 MAX_MEM_PER_APPLICATION = int(os.environ.get("MAX_MEM_PER_APPLICATION","1000000000"))
 MAX_CPU_PER_APPLICATION = int(os.environ.get("MAX_CPU_PER_APPLICATION","4")) 
 CONSUL_HOSTNAME = os.environ.get("CONSUL_HOSTNAME_CLOUD","morphemic.cloud:9898")
+EDGEX_CONSUL_HOSTNAME = os.environ.get("EDGEX_CONSUL_HOSTNAME","localhost")
+EDGEX_CONSUL_URL = os.environ.get("EDGEX_CONSUL_URL","http://localhost:8500")
+EDGEX_CONSUL_PORT = os.environ.get("EDGEX_CONSUL_PORT","8500")
+DEPLOYER_HOSTNAME = os.environ.get("DEPLOYER_HOSTNAME","192.168.1.3")
+DEPLOYER_PORT = os.environ.get("DEPLOYER_PORT","8778")
 
+logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
 
 class ApplicationComponent():
     def __init__(self, name, image):
@@ -28,10 +34,8 @@ class ApplicationComponent():
         self.resource = resource 
     def getReplicas(self):
         return self.replicas
-    def increaseReplicas(self):
-        self.replicas +=1
-    def decreaseReplicas(self):
-        self.replicas -=1
+    def setReplicas(self,number):
+       self.replicas = number 
     def addEnvs(self,env):
         self.env = env 
     def addLabels(self,labels):
@@ -95,12 +99,12 @@ class Deployer():
         try:
             self.docker_client = docker.from_env()
         except:
-            print("Error while trying to connect to docker API")
+            logging.error("Error while trying to connect to docker API")
             time.sleep(10)
             self.connect()
     def start(self):
         self.connect()
-        print("The deployer started successfully")
+        logging.debug("The deployer started successfully")
         #number of application deployed metric
         self.metric_n_applications = Gauge('number_applications','Number of applications deployed',labelnames=['application'],registry=self.metrics_registry)
         self.metric_n_applications.labels(application='deployer').set(0)
@@ -111,18 +115,31 @@ class Deployer():
             file = open("../data/applications.pk1","rb")
             self.applications = pickle.load(file)
             file.close()
+        if len(self.applications.keys()) > 0:
+            logging.info("Previous configuation has been loaded")
+        self.registerToLocalConsul()
+
+    def registerToLocalConsul(self):
+        message = {'id':'deployer','name':'deployer','port': int(DEPLOYER_PORT)}
+        message['check'] = {'name':'Deployer on port 8778','args':['tcp:'+DEPLOYER_HOSTNAME+':'+DEPLOYER_PORT],'interval':'30s','status':'passing'}
+        try:
+            response = requests.put(url=EDGEX_CONSUL_URL+"/v1/agent/service/register",data=json.dumps(message),headers={'Content-Type':'application/json'})
+            print(response.text)
+        except Exception as e:
+            logging.error("An error occured")
+            print(e)
     def createNetwork(self,name):
         try:
             for network in self.docker_client.networks.list():
                 if network.name == name:
-                    print("Network {0} already exists".format(name))
+                    logging.info("Network {0} already exists".format(name))
                     return True 
             self.docker_client.networks.create(name,driver="bridge",scope="swarm")
-            print("Network {0} created".format(name))
+            logging.info("Network {0} created".format(name))
             return True 
         except Exception as e:
             print(e)
-            print("Could not create network\nProcess will retry in 10s")
+            logging.error("Could not create network\nProcess will retry in 10s")
             time.sleep(10)
             self.connect()
             self.createNetwork(name)
@@ -133,7 +150,7 @@ class Deployer():
                     return service
             return None 
         except:
-            print("Could not get services\nReconnection in 10s")
+            logging.error("Could not get services\nReconnection in 10s")
             time.sleep(10)
             self.connect()
             self.getService(name)
@@ -166,7 +183,7 @@ class Deployer():
 
     def deleteApplication(self,_name):
         components_name = []
-        for name, application in self.applications:
+        for name, application in self.applications.items():
             if name == _name:
                 components = application.getComponents()
                 for component in components:
@@ -179,7 +196,8 @@ class Deployer():
             self.connect()
         for service in self.docker_client.services.list():
             if service.name in components_name:
-                service.delete()
+                service.remove()
+                del self.applications[_name]
         for network in self.docker_client.networks.list():
             if network.name == _name:
                 network.remove()
@@ -187,6 +205,7 @@ class Deployer():
         pickle.dump(self.applications,file,pickle.HIGHEST_PROTOCOL)
         file.close()
         return {"status":"success","message": "{0} removed".format(components_name)}
+        
 
     def prepareDeploy(self,component,application_name):
         service_name = component["name"]
@@ -212,7 +231,7 @@ class Deployer():
             restart_policy = RestartPolicy(condition=restart['name'],delay=10,max_attempts=restart['MaximumRetryCount'])
             endpoints = EndpointSpec(mode='vip',ports=ports)
             self.docker_client.services.create(image=image,name=service_name,hostname=service_name,restart_policy=restart_policy,endpoint_spec=endpoints,resources=resources,mounts=volumes,env=environment,labels=labels,command=command,networks=networks)
-            print("{0} component deployed".format(service_name))
+            logging.info("{0} component deployed".format(service_name))
             return resources
         except Exception as e:
             print(e)
@@ -228,6 +247,10 @@ class Deployer():
             for service in self.docker_client.services.list():
                 if service.name == component_name:
                     service.scale(n_replicas) 
+                    app = self.applications[application_name]
+                    for component in app.getComponents():
+                        if component.getName() == component_name:
+                            component.setReplicas(n_replicas)
                     
         elif _type == "vertical":
             cpu_limit = _data["cpu_limit"]
