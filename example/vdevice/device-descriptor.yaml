@@ -1,0 +1,64 @@
+name: "Sum computer from list"
+manufacturer: "Nitrotech"
+model: "model123"
+labels: 
+- "list_sum"
+- "sum"
+description: "Compute sum of integer list"
+
+deviceResources:
+-
+  name: "SumList"
+  description: "Sum value of a list"
+  properties:
+    value:
+      { type: "Int16", readWrite: "R", minimum: "0", maximum: "100000000", defaultValue: "0" }
+    units:
+      { type: "String", readWrite: "R", defaultValue: "count" }
+-
+  name: "ListSize"
+  description: "set the value of the list"
+  properties:
+    value:
+      { type: "Int16", readWrite: "R", minimum: "10", maximum: "1000", defaultValue: "0" }
+    units:
+      { type: "String", readWrite: "R", defaultValue: "count" }
+
+deviceCommands:
+-
+  name: "Sum"
+  get:
+  - { operation: "get", deviceResource: "SumList" }
+-
+  name: "Size"
+  get:
+    - { operation: "get", deviceResource: "ListSize" }
+  set:
+  - { operation: "set", deviceResource: "ListSize",parameter: "0" }
+
+coreCommands: 
+  - 
+    name: Sum
+    get:
+      path: "/api/v1/devices/{deviceId}/read_sum"
+      responses:
+      -
+        code: "200"
+        description: "Get the sum of a list"
+        expectedValues: ["SumList"]
+  - 
+    name: Size 
+    get:
+      path: "/api/v1/devices/{deviceId}/get_size"
+      responses:
+      -
+        code: "200"
+        description: "Get list size"
+        expectedValues: ["ListSize"]
+    put:
+      path: "/api/v1/devices/{deviceId}/set_size"
+      parameterNames: ["Size"]
+      responses:
+      - 
+        code: "200"
+        description: "Set the size of the list"

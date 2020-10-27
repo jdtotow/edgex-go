@@ -199,8 +199,6 @@ docker_security_secretstore_setup:
 
 docker_edgex_exporter:
 		docker build \
-	    --build-arg http_proxy \
-	    --build-arg https_proxy \
 		-f cmd/edgex_exporter/Dockerfile \
 		--label "git_sha=$(GIT_SHA)" \
 		-t jdtotow/docker-edgex-exporter:$(GIT_SHA) \
