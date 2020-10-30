@@ -24,5 +24,6 @@
             "resource": {"cpu_limit": 200000000,"cpu_reservation": 200000000, "mem_limit": 128000000,"mem_reservation": 128000000}
         }
 
-    ]
+    ],
+    "devices":["camera","thermometer"]
 }

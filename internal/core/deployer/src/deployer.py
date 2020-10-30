@@ -1,7 +1,8 @@
-import json, time, docker, os, pickle, requests, logging 
+import json, time, docker, os, requests, logging, pickle
 from os import path 
 from docker.types import Resources as DockerResources, RestartPolicy, EndpointSpec
 from prometheus_client import CollectorRegistry, Gauge
+from threading import Thread
 
 MAX_MEM_PER_APPLICATION = int(os.environ.get("MAX_MEM_PER_APPLICATION","1000000000"))
 MAX_CPU_PER_APPLICATION = int(os.environ.get("MAX_CPU_PER_APPLICATION","4")) 
@@ -12,16 +13,42 @@ EDGEX_CONSUL_PORT = os.environ.get("EDGEX_CONSUL_PORT","8500")
 DEPLOYER_HOSTNAME = os.environ.get("DEPLOYER_HOSTNAME","192.168.1.3")
 DEPLOYER_PORT = os.environ.get("DEPLOYER_PORT","8778")
 
-logging.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+logging.basicConfig(level=logging.INFO,format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+
+class DeviceManagement():
+    def __init__(self):
+        self.applications = {}
+    
+class ApplicationControlRoutine(Thread):
+    def __init__(self,interval,deployer):
+        self.interval = interval 
+        self.deployer = deployer 
+        super(ApplicationControlRoutine,self).__init__()
+    def run(self):
+        while True:
+            missing_components_on_swarm = []
+            components = self.deployer.getComponentsDeployed()
+            services_running = self.deployer.getSwarmServices()
+            if self.deployer.isDeploying():
+                time.sleep(30)
+                continue
+            for component in components:
+                if component.getName() not in services_running:
+                    missing_components_on_swarm.append(component)
+            if missing_components_on_swarm != []:
+                self.deployer.missingComponents(missing_components_on_swarm)
+            time.sleep(self.interval)
 
 class ApplicationComponent():
-    def __init__(self, name, image):
+    def __init__(self, name, image,_object,application_name):
         self.name = name 
         self.image = image 
         self.replicas = 0
         self.resource = None 
         self.env = [] 
         self.labels = {}
+        self._object = _object
+        self.application_name = application_name
     def setResource(self,resource):
         self.resource = resource
     def getName(self):
@@ -59,6 +86,10 @@ class ApplicationComponent():
         return None 
     def getResource(self):
         return self.resource
+    def getObject(self):
+        return self._object
+    def getApplicationName(self):
+        return self.application_name
 
 class Application():
     def __init__(self, name):
@@ -68,7 +99,7 @@ class Application():
         self.last_modifiction = time.time()
     def addComponent(self,component):
         if "name" in component and "image" in component:
-            comp = ApplicationComponent(component["name"],component["image"])
+            comp = ApplicationComponent(component["name"],component["image"],component,self.name)
             if "labels" in component:
                 comp.addLabels(component["labels"])
             if "env" in component:
@@ -95,6 +126,7 @@ class Deployer():
         self.docker_client = None
         self.metrics_registry = CollectorRegistry()
         self.metric_n_applications = None 
+        self.is_deploying = False 
     def connect(self):
         try:
             self.docker_client = docker.from_env()
@@ -104,7 +136,6 @@ class Deployer():
             self.connect()
     def start(self):
         self.connect()
-        logging.debug("The deployer started successfully")
         #number of application deployed metric
         self.metric_n_applications = Gauge('number_applications','Number of applications deployed',labelnames=['application'],registry=self.metrics_registry)
         self.metric_n_applications.labels(application='deployer').set(0)
@@ -117,7 +148,14 @@ class Deployer():
             file.close()
         if len(self.applications.keys()) > 0:
             logging.info("Previous configuation has been loaded")
+            logging.debug(self.applications)
+        routine = ApplicationControlRoutine(30,self)
+        routine.start()
         self.registerToLocalConsul()
+        logging.info("The deployer started successfully")
+
+    def isDeploying(self):
+        return self.is_deploying 
 
     def registerToLocalConsul(self):
         message = {'id':'deployer','name':'deployer','port': int(DEPLOYER_PORT)}
@@ -154,6 +192,31 @@ class Deployer():
             time.sleep(10)
             self.connect()
             self.getService(name)
+
+    def getComponentsDeployed(self):
+        result = []
+        for app in self.applications.values():
+            result.extend(app.getComponents())
+        return result 
+    def missingComponents(self,components):
+        logging.info("{} component are missing on the execution environment".format(len(components)))
+        for component in components:
+            application_name = component.getApplicationName()
+            _json = component.getObject()
+            self.createNetwork(application_name)
+            self.prepareDeploy(_json,application_name)
+    def getSwarmServices(self):
+        result = []
+        try:
+            for service in self.docker_client.services.list():
+                result.append(service.name)
+            return result 
+        except Exception as e:
+            logging.error(e)
+            logging.error("Could not get services in docker swarm\nretry in 10s")
+            time.sleep(10)
+            self.connect()
+            self.getSwarmServices()
 
     def getApplication(self,name):
         if name in self.applications:
@@ -227,14 +290,17 @@ class Deployer():
 
     def createService(self,service_name,image,ports,restart,cpu_limit,cpu_reservation,mem_reservation,mem_limit,volumes,environment,labels,command,networks):
         try:
+            self.is_deploying = True 
             resources = DockerResources(mem_limit=mem_limit,mem_reservation=mem_reservation,cpu_limit=cpu_limit,cpu_reservation=cpu_reservation)
             restart_policy = RestartPolicy(condition=restart['name'],delay=10,max_attempts=restart['MaximumRetryCount'])
             endpoints = EndpointSpec(mode='vip',ports=ports)
             self.docker_client.services.create(image=image,name=service_name,hostname=service_name,restart_policy=restart_policy,endpoint_spec=endpoints,resources=resources,mounts=volumes,env=environment,labels=labels,command=command,networks=networks)
             logging.info("{0} component deployed".format(service_name))
+            self.is_deploying = False 
             return resources
         except Exception as e:
             print(e)
+            self.is_deploying = False 
             return None 
     def getRegister(self):
         return self.metrics_registry

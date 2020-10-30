@@ -1,6 +1,6 @@
 from flask import Flask, Response, request 
 from flask_jwt import JWT, jwt_required, current_identity
-import time , json, hashlib, binascii, os, logging 
+import time , json, hashlib, binascii, os
 from pymongo import MongoClient
 from werkzeug.security import safe_str_cmp
 from deployer import Deployer
@@ -9,8 +9,7 @@ from prometheus_client.exposition import CONTENT_TYPE_LATEST, generate_latest
 MONGODB_HOSTNAME = os.environ.get("MONGODB_HOSTNAME","localhost")
 MONGODB_PORT = os.environ.get("MONGODB_PORT","27017")
 
-log = logging.getLogger('console')
-#log.basicConfig(format='%(asctime)s %(message)s', datefmt='%m/%d/%Y %I:%M:%S %p')
+#log = logging.getLogger('console')
 app = Flask(__name__) 
 
 deployer = Deployer()
@@ -38,7 +37,7 @@ def connectToMongoDB():
             connected_mongo_db = True 
         except Exception as e:
             print(e)
-            logging.error("Cannot connect to MONGODB\nRetry in {0}s".format(interval_reconnect))
+            app.logger.error("Cannot connect to MONGODB\nRetry in {0}s".format(interval_reconnect))
             time.sleep(interval_reconnect)
             interval_reconnect *= 2
 
@@ -50,7 +49,6 @@ def loadUsers():
     for u in users:
         username_table[u['username']] = User(u['id'],u['username'],u['password'])
         userid_table[u['id']] = User(u['id'],u['username'],u['password'])
-    log.info("Users loaded")
 
 def hash_password(password):
     """Hash a password for storing."""
