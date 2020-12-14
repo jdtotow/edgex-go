@@ -5,6 +5,7 @@ from prometheus_client import CollectorRegistry, Gauge
 from threading import Thread
 
 MAX_MEM_PER_APPLICATION = int(os.environ.get("MAX_MEM_PER_APPLICATION","1000000000"))
+EXEC_ENVIRONMENT = os.environ.get("EXEC_ENVIRONMENT","host")
 MAX_CPU_PER_APPLICATION = int(os.environ.get("MAX_CPU_PER_APPLICATION","4")) 
 CONSUL_HOSTNAME = os.environ.get("CONSUL_HOSTNAME_CLOUD","morphemic.cloud:9898")
 EDGEX_CONSUL_HOSTNAME = os.environ.get("EDGEX_CONSUL_HOSTNAME","localhost")
@@ -129,7 +130,10 @@ class Deployer():
         self.is_deploying = False 
     def connect(self):
         try:
-            self.docker_client = docker.from_env()
+            if EXEC_ENVIRONMENT == "host":
+                self.docker_client = docker.from_env()
+            else:
+                self.docker_client = docker.DockerClient(base_url='unix://var/run/docker.sock')
         except:
             logging.error("Error while trying to connect to docker API")
             time.sleep(10)

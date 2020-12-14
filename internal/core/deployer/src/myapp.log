@@ -1,7 +1,0 @@
-10/30/2020 01:11:28 AM Deployer started ...
-10/30/2020 01:11:28 AM  * Running on http://0.0.0.0:8778/ (Press CTRL+C to quit)
-10/30/2020 01:11:28 AM  * Restarting with stat
-10/30/2020 01:11:29 AM Deployer started ...
-10/30/2020 01:11:29 AM  * Debugger is active!
-10/30/2020 01:11:29 AM  * Debugger PIN: 258-593-465
-10/30/2020 01:13:21 AM  * Detected change in '/home/jean-didier/Projects/Doctoral/edgex-go/internal/core/deployer/src/deployer.py', reloading

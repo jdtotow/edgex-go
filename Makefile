@@ -10,7 +10,7 @@
 GO=CGO_ENABLED=0 GO111MODULE=on go
 GOCGO=CGO_ENABLED=1 GO111MODULE=on go
 
-DOCKERS=docker_core_data docker_core_metadata docker_core_command docker_support_logging docker_support_notifications docker_sys_mgmt_agent docker_support_scheduler docker_security_secrets_setup docker_security_proxy_setup docker_security_secretstore_setup docker_edgex_exporter
+DOCKERS=docker_edgex_exporter docker_deployer docker_core_data docker_core_metadata docker_core_command docker_support_logging docker_support_notifications docker_sys_mgmt_agent docker_support_scheduler docker_security_secrets_setup docker_security_proxy_setup docker_security_secretstore_setup 
 .PHONY: $(DOCKERS)
 
 MICROSERVICES=cmd/core-metadata/core-metadata cmd/core-data/core-data \
@@ -20,11 +20,12 @@ MICROSERVICES=cmd/core-metadata/core-metadata cmd/core-data/core-data \
 	cmd/security-secrets-setup/security-secrets-setup cmd/security-proxy-setup/security-proxy-setup \
 	cmd/security-secretstore-setup/security-secretstore-setup \
 	cmd/security-file-token-provider/security-file-token-provider cmd/security-secretstore-read/security-secretstore-read \
-	cmd/edgex_exporter/edgex_exporter 
+	cmd/edgex_exporter/edgex_exporter \
+	cmd/deployer/deployer 
 
 .PHONY: $(MICROSERVICES)
 
-VERSION=$(shell cat ./VERSION 2>/dev/null || echo 0.0.0)
+VERSION=$(shell cat ./VERSION 2>/dev/null || echo 1.0.0)
 DOCKER_TAG=$(VERSION)-dev
 
 GOFLAGS=-ldflags "-X github.com/jdtotow/edgex-go.Version=$(VERSION)"
@@ -78,6 +79,9 @@ cmd/security-file-token-provider/security-file-token-provider:
 cmd/security-secretstore-read/security-secretstore-read:
 	$(GO) build $(GOFLAGS) -o $@ ./cmd/security-secretstore-read
 
+cmd/deployer/deployer:
+	./cmd/deployer/build.sh 
+
 clean:
 	rm -f $(MICROSERVICES)
 
@@ -96,6 +100,22 @@ run_docker:
 	bin/edgex-docker-launch.sh $(EDGEX_DB)
 
 docker: $(DOCKERS)
+
+docker_edgex_exporter:
+		docker build \
+		-f cmd/edgex_exporter/Dockerfile \
+		--label "git_sha=$(GIT_SHA)" \
+		-t jdtotow/docker-edgex-exporter:$(GIT_SHA) \
+		-t jdtotow/docker-edgex-exporter:$(DOCKER_TAG) \
+		.
+
+docker_deployer:
+		docker build \
+		-f cmd/deployer/Dockerfile \
+		--label "git_sha=$(GIT_SHA)" \
+		-t jdtotow/deployer:$(GIT_SHA) \
+		-t jdtotow/deployer:$(DOCKER_TAG) \
+		.
 
 docker_core_metadata:
 	docker build \
@@ -197,9 +217,4 @@ docker_security_secretstore_setup:
 		-t jdtotow/docker-edgex-security-secretstore-setup-go:$(DOCKER_TAG) \
 		.
 
-docker_edgex_exporter:
-		docker build \
-		-f cmd/edgex_exporter/Dockerfile \
-		--label "git_sha=$(GIT_SHA)" \
-		-t jdtotow/docker-edgex-exporter:$(GIT_SHA) \
-		-t jdtotow/docker-edgex-exporter:$(DOCKER_TAG) \
+
